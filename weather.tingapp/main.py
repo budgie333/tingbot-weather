@@ -81,6 +81,38 @@ def screen_right ():
         screen_index = 0
 
 
+# decrease brightness by 5
+@midleft_button.press
+def screen_midleft ():
+    
+    brightness = screen.brightness
+
+    brightness -= 5
+    if brightness < 0:
+        brightness = 0
+        
+    screen.brightness = brightness
+    
+    screen.rectangle (align='center', size=(280,40), color='black')
+    screen.text ("Brightness " + str (brightness), align='center')
+
+
+# increase brightness by 5
+@midright_button.press
+def screen_midright ():
+    
+    brightness = screen.brightness
+
+    brightness += 5
+    if brightness > 100:
+        brightness = 100
+        
+    screen.brightness = brightness
+    
+    screen.rectangle (align='center', size=(280,40), color='black')
+    screen.text ("Brightness " + str (brightness), align='center')
+
+
 # move to previous screen
 @left_button.press
 def screen_left ():
@@ -144,7 +176,13 @@ def update_screen():
         update_weather_screen (current_time)
     else: # forecast
         update_forecast_screen ()
+
     
+# called once to initialize brightness
+@once (seconds=0.25)
+def on_startup ():
+    screen.brightness = 75
+
 
 # map of weather code to icon png
 code_to_icon_map = {
