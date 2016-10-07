@@ -11,9 +11,12 @@ icon_str = "icons/na.png"
 screen_index = 0
 max_screens = 3
 forecast_list = []
+update_time_str = ""
 
-# list of location informaiton [0] = city, [1] = state, [2] = country
-location = ["New York", "NY", "USA"]
+# location settings from settings.json
+city = tingbot.app.settings ['city'].replace (" ", "%20")
+state = tingbot.app.settings ['state'].replace (" ", "%20")
+country = tingbot.app.settings ['country'].replace (" ", "%20")
 
 # update screen primarily displaying time
 def update_time_screen (current_time, current_date):
@@ -25,6 +28,7 @@ def update_time_screen (current_time, current_date):
     screen.text (temperature_str, align="topright", color="white", font_size=35)
     screen.text (current_time, align="center", color="white", font_size=65)
     screen.text (current_date, align="bottom", color="white", font_size=25)
+    screen.text ("@ " + update_time_str, align="right", color="grey", xy=(320,55), font_size=15)
     if len (icon_str) > 0:
         screen.image (icon_str, align='topleft', scale='fit', max_width=75, max_height=75)
 
@@ -39,6 +43,7 @@ def update_weather_screen (current_time):
     screen.fill (color='black')
     screen.text (current_time, align="topright", color="white", font_size=35)
     screen.text (temperature_str, align="center", color="white", font_size=70)
+    screen.text ("@ " + update_time_str, align="right", color="grey", xy=(320,145), font_size=15)
     if len (forecast_list) > 0:
         hi_lo = forecast_list [0][1] + " / " + forecast_list [0][2]
         screen.text (hi_lo, align="center", color="white", xy=(160,180), font_size=25)
@@ -70,15 +75,16 @@ def update_forecast_screen ():
         screen.image (icon_str, align="right", xy=(320, (i+1) * 55), scale='fit', max_width=75, max_height=75)
 
 
-# move to next screen    
-@right_button.press
-def screen_right ():
+# move to previous screen
+@left_button.press
+def screen_left ():
     
     global screen_index
     
-    screen_index += 1
-    if screen_index >= max_screens:
-        screen_index = 0
+    if screen_index == 0:
+        screen_index = max_screens - 1
+    else:
+        screen_index -= 1
 
 
 # decrease brightness by 5
@@ -113,25 +119,21 @@ def screen_midright ():
     screen.text ("Brightness " + str (brightness), align='center')
 
 
-# move to previous screen
-@left_button.press
-def screen_left ():
+# move to next screen    
+@right_button.press
+def screen_right ():
     
     global screen_index
     
-    if screen_index == 0:
-        screen_index = max_screens - 1
-    else:
-        screen_index -= 1
+    screen_index += 1
+    if screen_index >= max_screens:
+        screen_index = 0
 
 
 # update temperature from yahoo
 @every(minutes=15.0)
 def update_temperature_data_yahoo ():
 
-    city = location [0].replace (" ", "%20")
-    state = location [1].replace (" ", "%20")
-    country = location [2].replace (" ", "%20")
     url_string = "https://query.yahooapis.com/v1/public/yql?q=select%20*%20from%20weather.forecast%20where%20woeid%20in%20(select%20woeid%20from%20geo.places(1)%20where%20text%3D%22" + city + "%2C%20" + state + "%2C%20" + country + "%22)&format=json&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys"
     response = urllib2.urlopen (url_string).read ()
 
@@ -141,6 +143,7 @@ def update_temperature_data_yahoo ():
     global description_str
     global icon_str
     global forecast_list
+    global update_time_str
     
     try:
         temperature_str = response_dict['query']['results']['channel']['item']['condition']['temp'] + " F"
@@ -157,6 +160,8 @@ def update_temperature_data_yahoo ():
             #tup = (day, high, low, text, code)
             tup = (element ["day"], element["high"], element["low"], element["text"], int (element["code"]))
             forecast_list.append (tup)
+            
+        update_time_str = time.strftime ("%I:%M").strip ('0') # strip leading 0 from 12 hour format
     except:
         temperature_str = ""
         description_str = "error"
