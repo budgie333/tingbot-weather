@@ -1,5 +1,13 @@
 # weather_clock
 
+Create a **settings.json** with the following settings:
+```
+{
+    "city":"",
+    "state":"",
+    "country":""
+}
+```
 weather app with multiple screens; clock, current temp and mutli day forecast
 
 navigate screens via left and right buttons
