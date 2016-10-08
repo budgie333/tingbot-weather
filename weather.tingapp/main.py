@@ -61,7 +61,7 @@ def update_forecast_screen ():
         return
     
     stop = min (len (forecast_list), 4)
-    screen.text (str (stop) + " day forecast", align="top", color="white", font_size=30)
+    screen.text (tingbot.app.settings ['city'] + " " + str (stop) + " day forecast", align="top", color="white", font_size=20)
     for i in range (0, stop):
         forecast = forecast_list [i]
         # create string <day> <high> <low> <desc>
@@ -161,7 +161,7 @@ def update_temperature_data_yahoo ():
             tup = (element ["day"], element["high"], element["low"], element["text"], int (element["code"]))
             forecast_list.append (tup)
             
-        update_time_str = time.strftime ("%I:%M").strip ('0') # strip leading 0 from 12 hour format
+        update_time_str = time.strftime ("%I:%M").lstrip ('0') # strip leading 0 from 12 hour format
     except:
         temperature_str = ""
         description_str = "error"
