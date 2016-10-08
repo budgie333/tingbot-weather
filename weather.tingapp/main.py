@@ -14,9 +14,13 @@ forecast_list = []
 update_time_str = ""
 
 # location settings from settings.json
-city = tingbot.app.settings ['city'].replace (" ", "%20")
-state = tingbot.app.settings ['state'].replace (" ", "%20")
-country = tingbot.app.settings ['country'].replace (" ", "%20")
+# replace any space with %20 so it can be passed in url
+city = tingbot.app.settings ['city']
+city_url = city.replace (" ", "%20")
+state = tingbot.app.settings ['state']
+state_url = state.replace (" ", "%20")
+country = tingbot.app.settings ['country']
+country_url = country.replace (" ", "%20")
 
 # update screen primarily displaying time
 def update_time_screen (current_time, current_date):
@@ -61,7 +65,7 @@ def update_forecast_screen ():
         return
     
     stop = min (len (forecast_list), 4)
-    screen.text (tingbot.app.settings ['city'] + " " + str (stop) + " day forecast", align="top", color="white", font_size=20)
+    screen.text (city + " " + str (stop) + " day forecast", align="top", color="white", font_size=22)
     for i in range (0, stop):
         forecast = forecast_list [i]
         # create string <day> <high> <low> <desc>
@@ -134,7 +138,7 @@ def screen_right ():
 @every(minutes=15.0)
 def update_temperature_data_yahoo ():
 
-    url_string = "https://query.yahooapis.com/v1/public/yql?q=select%20*%20from%20weather.forecast%20where%20woeid%20in%20(select%20woeid%20from%20geo.places(1)%20where%20text%3D%22" + city + "%2C%20" + state + "%2C%20" + country + "%22)&format=json&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys"
+    url_string = "https://query.yahooapis.com/v1/public/yql?q=select%20*%20from%20weather.forecast%20where%20woeid%20in%20(select%20woeid%20from%20geo.places(1)%20where%20text%3D%22" + city_url + "%2C%20" + state_url + "%2C%20" + country_url + "%22)&format=json&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys"
     response = urllib2.urlopen (url_string).read ()
 
     response_dict = json.loads (response)
