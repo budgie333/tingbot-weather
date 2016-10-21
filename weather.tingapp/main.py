@@ -12,6 +12,9 @@ screen_index = 0
 max_screens = 3
 forecast_list = []
 update_time_str = ""
+default_brightness = 75
+
+brightness_dict = {}
 
 # location settings from settings.json
 # replace any space with %20 so it can be passed in url
@@ -171,6 +174,19 @@ def update_temperature_data_yahoo ():
         description_str = "error"
         icon_str = "icons/na.png"
 
+# checks once a minute for auto setting of screen brightness
+@every(seconds=60.0)
+def auto_brightness ():
+    current_time = time.strftime ("%I:%M %p")
+
+    for time_string in brightness_dict:
+        if current_time.find (time_string) != -1:
+            brightness = brightness_dict [time_string]
+            screen.brightness = brightness
+
+            screen.rectangle (align='center', size=(280,40), color='black')
+            screen.text ("Auto Brightness " + str (brightness), align='center')
+
 
 # primary update function, calls screen specific update
 @every(seconds=1.0)
@@ -190,7 +206,20 @@ def update_screen():
 # called once to initialize brightness
 @once (seconds=0.25)
 def on_startup ():
-    screen.brightness = 75
+
+    # read in brightness settings, if not set start at default_brightness    
+    global brightness_dict
+    try:
+        brightness_settings = tingbot.app.settings ['brightness']
+        for entry in brightness_settings:
+            brightness_dict [entry] = int (brightness_settings [entry])
+    except:
+        pass
+
+    if brightness_dict.has_key ("startup"):
+        screen.brightness = brightness_dict ["startup"]
+    else:
+        screen.brightnes = default_brightness
 
 
 # map of weather code to icon png
