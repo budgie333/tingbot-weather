@@ -140,12 +140,14 @@ def screen_right ():
 # update temperature from yahoo
 @every(minutes=15.0)
 def update_temperature_data_yahoo ():
-
+    
     url_string = "https://query.yahooapis.com/v1/public/yql?q=select%20*%20from%20weather.forecast%20where%20woeid%20in%20(select%20woeid%20from%20geo.places(1)%20where%20text%3D%22" + city_url + "%2C%20" + state_url + "%2C%20" + country_url + "%22)&format=json&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys"
     response = urllib2.urlopen (url_string).read ()
-
+    
     response_dict = json.loads (response)
     
+    print response_dict
+ 
     global temperature_str
     global description_str
     global icon_str
@@ -153,26 +155,39 @@ def update_temperature_data_yahoo ():
     global update_time_str
     
     try:
+        print response_dict['query']['results']['channel']['item']['condition']['temp'] + " F"
         temperature_str = response_dict['query']['results']['channel']['item']['condition']['temp'] + " F"
+    except:
+        temperature_str = ""
+        
+    try:
+        print response_dict['query']['results']['channel']['item']['condition']['text']
         description_str = response_dict['query']['results']['channel']['item']['condition']['text']
+    except:
+        description_str = "error"
+        
+    try:
+        print response_dict['query']['results']['channel']['item']['condition']['code']
         code = int (response_dict['query']['results']['channel']['item']['condition']['code'])
         #icon_str = "http://l.yimg.com/a/i/us/we/52/" + str (code) + ".gif"
         if code_to_icon_map.has_key (code):
             icon_str = code_to_icon_map [code]
         else:
             icon_str = "icons/na.png"
+    except:
+        icon_str = "icons/na.png"
+        
+    update_time_str = time.strftime ("%I:%M").lstrip ('0') # strip leading 0 from 12 hour format
+    forecast_list = [] # clear current forecast_list
+    try:
         forecast = response_dict['query']['results']['channel']['item']['forecast']
-        forecast_list = [] # clear current forecast_list
         for element in forecast:
             #tup = (day, high, low, text, code)
-            tup = (element ["day"], element["high"], element["low"], element["text"], int (element["code"]))
-            forecast_list.append (tup)
-            
-        update_time_str = time.strftime ("%I:%M").lstrip ('0') # strip leading 0 from 12 hour format
+            print element
+            #tup = (element ["day"], element["high"], element["low"], element["text"], int (element["code"]))
+            #forecast_list.append (tup)
     except:
-        temperature_str = ""
-        description_str = "error"
-        icon_str = "icons/na.png"
+        pass
 
 # checks once a minute for auto setting of screen brightness
 @every(seconds=60.0)
