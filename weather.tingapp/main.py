@@ -136,10 +136,9 @@ def screen_right ():
     if screen_index >= max_screens:
         screen_index = 0
 
-
-# update temperature from yahoo
+# update temperature from openweathermap
 @every(minutes=15.0)
-def update_temperature_data_yahoo ():
+def update_temperature_data_openweathermap ():
     
     url_string = "https://query.yahooapis.com/v1/public/yql?q=select%20*%20from%20weather.forecast%20where%20woeid%20in%20(select%20woeid%20from%20geo.places(1)%20where%20text%3D%22" + city_url + "%2C%20" + state_url + "%2C%20" + country_url + "%22)&format=json&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys"
     response = urllib2.urlopen (url_string).read ()
@@ -147,7 +146,16 @@ def update_temperature_data_yahoo ():
     response_dict = json.loads (response)
     
     print response_dict
- 
+
+# update temperature from yahoo
+#@every(minutes=15.0)
+def update_temperature_data_yahoo ():
+    
+    url_string = "https://query.yahooapis.com/v1/public/yql?q=select%20*%20from%20weather.forecast%20where%20woeid%20in%20(select%20woeid%20from%20geo.places(1)%20where%20text%3D%22" + city_url + "%2C%20" + state_url + "%2C%20" + country_url + "%22)&format=json&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys"
+    response = urllib2.urlopen (url_string).read ()
+    
+    response_dict = json.loads (response)
+    
     global temperature_str
     global description_str
     global icon_str
