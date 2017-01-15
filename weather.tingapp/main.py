@@ -3,6 +3,7 @@ from tingbot import *
 import urllib2
 import json
 import time
+import datetime
 
 
 temperature_str = "n/a"
@@ -74,10 +75,11 @@ def update_forecast_screen ():
         # create string <day> <high> <low> <desc>
         line = forecast [0] + ":\t" + forecast [1] + "/" + forecast [2] + "\t" + forecast [3]
         screen.text (line, align="left", xy=(0, (i+1) * 55), color="white", font_size = 20)
-        if code_to_icon_map.has_key (forecast [4]):
-            icon_str = code_to_icon_map [forecast [4]]
-        else:
-            icon_str = "icons/na.png"
+        icon_str = forecast [4]
+        #if code_to_icon_map.has_key (forecast [4]):
+        #    icon_str = code_to_icon_map [forecast [4]]
+        #else:
+        #    icon_str = "icons/na.png"
         # alignment is relative to xy, xy with topright alignment makes xy the topright point in the icon
         screen.image (icon_str, align="right", xy=(320, (i+1) * 55), scale='fit', max_width=75, max_height=75)
 
@@ -140,12 +142,57 @@ def screen_right ():
 @every(minutes=15.0)
 def update_temperature_data_openweathermap ():
     
-    url_string = "https://query.yahooapis.com/v1/public/yql?q=select%20*%20from%20weather.forecast%20where%20woeid%20in%20(select%20woeid%20from%20geo.places(1)%20where%20text%3D%22" + city_url + "%2C%20" + state_url + "%2C%20" + country_url + "%22)&format=json&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys"
+    url_string = "http://api.openweathermap.org/data/2.5/weather?zip=21075,us&APPID=75e34f21e817cb0a174ae85ae6244a72&units=imperial"
     response = urllib2.urlopen (url_string).read ()
     
     response_dict = json.loads (response)
     
-    print response_dict
+    global temperature_str
+    global description_str
+    global icon_str
+    global forecast_list
+    global update_time_str
+    
+    try:
+        temperature_str = "%.0fF" % response_dict ["main"]["temp"]
+    except:
+        temperature_str = ""
+        
+    try:
+        description_str = response_dict ["weather"][-1]["main"]
+    except:
+        description_str = "error"
+    
+    try:
+        #icon_str = "http://openweathermap.org/img/w/10d.png"
+        icon_str = "http://openweathermap.org/img/w/" + response_dict ["weather"][-1]["icon"] + ".png"
+    except:
+        icon_str = ""
+
+    update_time_str = time.strftime ("%I:%M").lstrip ('0') # strip leading 0 from 12 hour format
+    
+    forecast_list = [] # clear current forecast_list
+    try:
+        # need to make separate call for 4 day forecast
+        url_string = "http://api.openweathermap.org/data/2.5/forecast/daily?cnt=4&zip=21075,us&APPID=75e34f21e817cb0a174ae85ae6244a72&units=imperial"
+        response = urllib2.urlopen (url_string).read ()
+        response_dict = json.loads (response)
+
+        forecast = response_dict["list"]
+        i = 0
+        for element in forecast:
+            #tup = (day, high, low, text, icon code)
+            max_temp_str = str ((int) (element ["temp"]["max"]))
+            min_temp_str = str ((int) (element ["temp"]["min"]))
+            desc_str = element ["weather"][0]["main"]
+            day = datetime.date.today () + datetime.timedelta(days=i)
+            day_str = day.strftime ("%a")
+            icon_str = "http://openweathermap.org/img/w/" + element ["weather"][0]["icon"] + ".png"
+            tup = (day_str, max_temp_str, min_temp_str, desc_str, icon_str)
+            forecast_list.append (tup)
+            i += 1
+    except:
+        pass
 
 # update temperature from yahoo
 #@every(minutes=15.0)
@@ -163,19 +210,16 @@ def update_temperature_data_yahoo ():
     global update_time_str
     
     try:
-        print response_dict['query']['results']['channel']['item']['condition']['temp'] + " F"
         temperature_str = response_dict['query']['results']['channel']['item']['condition']['temp'] + " F"
     except:
         temperature_str = ""
         
     try:
-        print response_dict['query']['results']['channel']['item']['condition']['text']
         description_str = response_dict['query']['results']['channel']['item']['condition']['text']
     except:
         description_str = "error"
         
     try:
-        print response_dict['query']['results']['channel']['item']['condition']['code']
         code = int (response_dict['query']['results']['channel']['item']['condition']['code'])
         #icon_str = "http://l.yimg.com/a/i/us/we/52/" + str (code) + ".gif"
         if code_to_icon_map.has_key (code):
@@ -191,9 +235,10 @@ def update_temperature_data_yahoo ():
         forecast = response_dict['query']['results']['channel']['item']['forecast']
         for element in forecast:
             #tup = (day, high, low, text, code)
-            print element
+            #print element
             #tup = (element ["day"], element["high"], element["low"], element["text"], int (element["code"]))
-            #forecast_list.append (tup)
+            tup = (element ["day"], element["high"], element["low"], element["text"], code_to_icon_map (int (element["code"])))
+            forecast_list.append (tup)
     except:
         pass
 
