@@ -22,6 +22,8 @@ navigate screens via left and right buttons
 
 increase and decrease screen brightness via midleft and midright buttons
 
+weather updates occur every 15 minutes but can be forced by holding the left button
+
 'city', 'state and 'country' settings are required.
 
 'source' is either 'yahoo' or 'openweather', defaults to 'yahoo'.  This determines the source of the weather information
