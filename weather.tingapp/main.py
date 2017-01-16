@@ -4,18 +4,23 @@ import urllib2
 import json
 import time
 import datetime
+from collections import deque
 
 
 temperature_str = "n/a"
 description_str = ""
 icon_str = "icons/na.png"
 screen_index = 0
-max_screens = 3
+max_screens = 3 # can increase to 4 if log screen is enabled
 forecast_list = []
 update_time_str = ""
 default_brightness = 75
 
 brightness_dict = {}
+
+log_screen_enabled = False
+max_log_messages = 4
+log_messages = deque(maxlen=max_log_messages)
 
 # location settings from settings.json
 # replace any space with %20 so it can be passed in url
@@ -25,6 +30,18 @@ state = tingbot.app.settings ['state']
 state_url = state.replace (" ", "%20")
 country = tingbot.app.settings ['country']
 country_url = country.replace (" ", "%20")
+
+
+# creates log entry with content
+def log_message (content):
+    
+    global log_messages
+    
+    time_str = time.strftime ("%I:%M").lstrip ('0') # strip leading 0 from 12 hour format
+    log_str = time_str + " - " + content
+    
+    log_messages.appendleft (log_str)
+    
 
 # update screen primarily displaying time
 def update_time_screen (current_time, current_date):
@@ -84,6 +101,49 @@ def update_forecast_screen ():
         screen.image (icon_str, align="right", xy=(320, (i+1) * 55), scale='fit', max_width=75, max_height=75)
 
 
+# updates screen displaying log messages
+def update_log_screen ():
+
+    screen.fill (color='black')
+    screen.text ("log messages", align="top", color="white", font_size=22)
+    
+    for i in range (0, len (log_messages)):
+        screen.text (log_messages [i], align="left", xy=(0, (i+1) * 55), color="white", font_size = 20)
+
+
+# force update
+@left_button.hold
+def force_update ():
+    
+    log_message ("forced update")
+    
+    # this should be configurable...
+    update_temperature_data_openweathermap ()
+
+
+# enable/disable log messages screen
+@right_button.hold
+def enable_disable_log_screen ():
+    
+    global log_screen_enabled
+    global max_screens
+
+    screen.rectangle (align='center', size=(280,40), color='black')
+    
+    if log_screen_enabled == False:
+        log_screen_enabled = True
+        max_screens += 1
+        screen_text = "log screen enabled"
+        
+    else: # currently enabled
+        log_screen_enabled = False
+        max_screens -= 1
+        screen.rectangle (align='center', size=(280,40), color='black')
+        screen_text = "log screen disabled"
+
+    screen.text (screen_text, align='center')
+
+
 # move to previous screen
 @left_button.press
 def screen_left ():
@@ -99,7 +159,7 @@ def screen_left ():
 # decrease brightness by 5
 @midleft_button.press
 def screen_midleft ():
-    
+
     brightness = screen.brightness
 
     brightness -= 5
@@ -138,12 +198,17 @@ def screen_right ():
     if screen_index >= max_screens:
         screen_index = 0
 
+
 # update temperature from openweathermap
 @every(minutes=15.0)
 def update_temperature_data_openweathermap ():
     
-    url_string = "http://api.openweathermap.org/data/2.5/weather?zip=21075,us&APPID=75e34f21e817cb0a174ae85ae6244a72&units=imperial"
-    response = urllib2.urlopen (url_string).read ()
+    try:
+        url_string = "http://api.openweathermap.org/data/2.5/weather?zip=21075,us&APPID=75e34f21e817cb0a174ae85ae6244a72&units=imperial"
+        response = urllib2.urlopen (url_string).read ()
+    except:
+        log_message ("url failed")
+        return
     
     response_dict = json.loads (response)
     
@@ -156,17 +221,20 @@ def update_temperature_data_openweathermap ():
     try:
         temperature_str = "%.0fF" % response_dict ["main"]["temp"]
     except:
+        log_message ("failed getting temp")
         temperature_str = ""
         
     try:
         description_str = response_dict ["weather"][-1]["main"]
     except:
+        log_message ("failed getting desc")
         description_str = "error"
     
     try:
         #icon_str = "http://openweathermap.org/img/w/10d.png"
         icon_str = "http://openweathermap.org/img/w/" + response_dict ["weather"][-1]["icon"] + ".png"
     except:
+        log_message ("failed getting icon")
         icon_str = ""
 
     update_time_str = time.strftime ("%I:%M").lstrip ('0') # strip leading 0 from 12 hour format
@@ -192,7 +260,8 @@ def update_temperature_data_openweathermap ():
             forecast_list.append (tup)
             i += 1
     except:
-        pass
+        log_message ("failed building forecast")
+
 
 # update temperature from yahoo
 #@every(minutes=15.0)
@@ -242,6 +311,7 @@ def update_temperature_data_yahoo ():
     except:
         pass
 
+
 # checks once a minute for auto setting of screen brightness
 @every(seconds=60.0)
 def auto_brightness ():
@@ -259,6 +329,7 @@ def auto_brightness ():
 # primary update function, calls screen specific update
 @every(seconds=1.0)
 def update_screen():
+    
     current_time = time.strftime ("%I:%M %p")
     current_time = current_time.strip ('0') # remove leading 0 from 12 hour format
     current_date = time.strftime ("%b %d, %Y")
@@ -267,8 +338,10 @@ def update_screen():
         update_time_screen (current_time, current_date)
     elif screen_index == 1: # current weather
         update_weather_screen (current_time)
-    else: # forecast
+    elif screen_index == 2: # forecast
         update_forecast_screen ()
+    else: # log messages
+        update_log_screen ()
 
     
 # called once to initialize brightness
