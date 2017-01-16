@@ -31,6 +31,13 @@ state_url = state.replace (" ", "%20")
 country = tingbot.app.settings ['country']
 country_url = country.replace (" ", "%20")
 
+update_func = None
+
+appid = ""
+try:
+    appid = tingbot.app.settings ['appid']
+except:
+    pass
 
 # creates log entry with content
 def log_message (content):
@@ -117,8 +124,10 @@ def force_update ():
     
     log_message ("forced update")
     
-    # this should be configurable...
-    update_temperature_data_openweathermap ()
+    if update_func != None:
+        update_func ()
+    else:
+        log_message ("source invalid")
 
 
 # enable/disable log messages screen
@@ -200,11 +209,10 @@ def screen_right ():
 
 
 # update temperature from openweathermap
-@every(minutes=15.0)
 def update_temperature_data_openweathermap ():
     
     try:
-        url_string = "http://api.openweathermap.org/data/2.5/weather?zip=21075,us&APPID=75e34f21e817cb0a174ae85ae6244a72&units=imperial"
+        url_string = "http://api.openweathermap.org/data/2.5/weather?zip=21075,us&APPID=" + appid + "&units=imperial"
         response = urllib2.urlopen (url_string).read ()
     except:
         log_message ("url failed")
@@ -242,7 +250,7 @@ def update_temperature_data_openweathermap ():
     forecast_list = [] # clear current forecast_list
     try:
         # need to make separate call for 4 day forecast
-        url_string = "http://api.openweathermap.org/data/2.5/forecast/daily?cnt=4&zip=21075,us&APPID=75e34f21e817cb0a174ae85ae6244a72&units=imperial"
+        url_string = "http://api.openweathermap.org/data/2.5/forecast/daily?cnt=4&zip=21075,us&APPID=" + appid + "&units=imperial"
         response = urllib2.urlopen (url_string).read ()
         response_dict = json.loads (response)
 
@@ -264,11 +272,14 @@ def update_temperature_data_openweathermap ():
 
 
 # update temperature from yahoo
-#@every(minutes=15.0)
 def update_temperature_data_yahoo ():
     
-    url_string = "https://query.yahooapis.com/v1/public/yql?q=select%20*%20from%20weather.forecast%20where%20woeid%20in%20(select%20woeid%20from%20geo.places(1)%20where%20text%3D%22" + city_url + "%2C%20" + state_url + "%2C%20" + country_url + "%22)&format=json&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys"
-    response = urllib2.urlopen (url_string).read ()
+    try:
+        url_string = "https://query.yahooapis.com/v1/public/yql?q=select%20*%20from%20weather.forecast%20where%20woeid%20in%20(select%20woeid%20from%20geo.places(1)%20where%20text%3D%22" + city_url + "%2C%20" + state_url + "%2C%20" + country_url + "%22)&format=json&env=store%3A%2F%2Fdatatables.org%2Falltableswithkeys"
+        response = urllib2.urlopen (url_string).read ()
+    except:
+        log_message ("url failed")
+        return
     
     response_dict = json.loads (response)
     
@@ -281,11 +292,13 @@ def update_temperature_data_yahoo ():
     try:
         temperature_str = response_dict['query']['results']['channel']['item']['condition']['temp'] + " F"
     except:
+        log_message ("failed getting temp")
         temperature_str = ""
         
     try:
         description_str = response_dict['query']['results']['channel']['item']['condition']['text']
     except:
+        log_message ("failed getting desc")
         description_str = "error"
         
     try:
@@ -296,12 +309,14 @@ def update_temperature_data_yahoo ():
         else:
             icon_str = "icons/na.png"
     except:
+        log_message ("failed getting icon")
         icon_str = "icons/na.png"
         
     update_time_str = time.strftime ("%I:%M").lstrip ('0') # strip leading 0 from 12 hour format
     forecast_list = [] # clear current forecast_list
     try:
         forecast = response_dict['query']['results']['channel']['item']['forecast']
+        print forecast
         for element in forecast:
             #tup = (day, high, low, text, code)
             #print element
@@ -309,7 +324,33 @@ def update_temperature_data_yahoo ():
             tup = (element ["day"], element["high"], element["low"], element["text"], code_to_icon_map (int (element["code"])))
             forecast_list.append (tup)
     except:
-        pass
+        log_message ("failed getting forecast")
+
+
+# generic weather update function
+@every(minutes=15.0)
+def weather_update ():
+
+    global update_func
+    
+    # should only be None the first time
+    if update_func == None:
+        try:
+            source = tingbot.app.settings ['source']
+        except:
+            source = "yahoo"
+    
+        if source == "openweather":
+            update_func = update_temperature_data_openweathermap
+        else: # yahoo
+            update_func = update_temperature_data_yahoo
+    
+        log_message ("data source " + source)
+    
+    if update_func != None:
+        update_func ()
+    else:
+        log_message ("source invalid")
 
 
 # checks once a minute for auto setting of screen brightness
@@ -361,7 +402,9 @@ def on_startup ():
         screen.brightness = brightness_dict ["startup"]
     else:
         screen.brightnes = default_brightness
-
+        
+    global update_func
+    
 
 # map of weather code to icon png
 code_to_icon_map = {
